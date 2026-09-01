@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobsdb-wrapper"
+version = "4.0.0"
+description = "Pure-HTTP Python client for JobsDB/JobStreet (SEEK) — search jobs with full filters, fetch full postings as Markdown. No browser, no CAPTCHA, no accounts required."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "igoni", email = "igoni@users.noreply.github.com"}
+]
+maintainers = [
+    {name = "igoni", email = "igoni@users.noreply.github.com"}
+]
+keywords = ["jobsdb", "jobstreet", "seek", "job-search", "scraping", "graphql", "thailand", "hong-kong", "malaysia", "singapore", "philippines", "indonesia"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "curl_cffi>=0.13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
+    "ruff>=0.3",
+    "mypy>=1.0",
+    "build>=1.0",
+    "twine>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/igoni/jobsdb-wrapper"
+Repository = "https://github.com/igoni/jobsdb-wrapper"
+Changelog = "https://github.com/igoni/jobsdb-wrapper/blob/main/CHANGELOG.md"
+Issues = "https://github.com/igoni/jobsdb-wrapper/issues"
+CI = "https://github.com/igoni/jobsdb-wrapper/actions"
+Security = "https://github.com/igoni/jobsdb-wrapper/blob/main/SECURITY.md"
+Terms = "https://github.com/igoni/jobsdb-wrapper/blob/main/TERMS_OF_USE.md"
+Code_of_Conduct = "https://github.com/igoni/jobsdb-wrapper/blob/main/CODE_OF_CONDUCT.md"
+
+[project.scripts]
+jobsdb = "jobsdb_wrapper.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["jobsdb_wrapper*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "W"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+# Pragmatic: curl_cffi / upstream GraphQL payloads are Any-typed; enforcing
+# strict Any hygiene here would drown the signal. Core invariants are covered
+# by tests + the live `doctor` contract checks instead.
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+warn_return_any = false
+disable_error_code = ["assignment", "override", "attr-defined", "no-any-return", "arg-type"]

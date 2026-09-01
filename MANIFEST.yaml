@@ -1,0 +1,47 @@
+name: jobsdb-wrapper
+version: 4.0.0
+status: active
+summary: Free pure-HTTP Python client for JobsDB/JobStreet (SEEK unified GraphQL platform). Guest-only search with full filters + Markdown postings. No browser, no CAPTCHA, no accounts, no cookies.
+supported_markets:
+  - th
+  - hk
+  - my
+  - sg
+  - ph
+  - id
+features:
+  core (pip install jobsdb-wrapper):
+    - search: keyword filtering, location+radius, salary range, work types, arrangements, posting age, categories, advertiser/org, tags, sort
+    - facets: category, title, location discovery
+    - caching: SQLite detail cache with content-hash validation
+    - async: parallel bulk detail fetching
+    - doctor: live contract drift checks
+    - markdown: full posting -> Markdown conversion
+    - dependencies: curl_cffi only
+  deliberately_excluded:
+    - login / account creation (SEEK has no email/password GraphQL login)
+    - profile read/write, skills, experience, education (authenticated surface; SEEK sessions are server-side and cannot be exercised safely from a third-party client)
+    - save/apply to jobs (not in the captured guest contract)
+    - browser automation / cookie extraction (removed in 4.0.0)
+requirements:
+  - python_version: "3.10+"
+  - core_dependencies:
+      - curl_cffi>=0.13
+      - sqlite3 (stdlib)
+      - asyncio (stdlib)
+auth:
+  authentication: none (guest-only by design since 4.0.0)
+cli:
+  commands:
+    - search: guest search with full filter surface
+    - job: fetch full posting as JSON or Markdown
+    - locations: location autocomplete
+    - facets-v6: title/location facets with counts
+    - doctor: live contract drift check
+output_dirs:
+  - outputs/ (Markdown files)
+docs:
+  - README.md (user documentation)
+  - src/jobsdb_wrapper/USER_GUIDE.md (usage guide)
+  - tests/ (unit tests)
+  - examples/ (usage examples)
