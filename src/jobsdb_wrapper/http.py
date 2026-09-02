@@ -7,6 +7,7 @@ import random
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 from .models import (
@@ -121,9 +122,17 @@ def interpret_body(body: dict[str, Any], op: str) -> dict[str, Any]:
         if any(e.get("extensions", {}).get("code") == "UNSTABLE_QUERY_ERROR" for e in errors):
             raise RequestError("runtime", "UNSTABLE_QUERY_ERROR (soft backend rejection)")
         if hard:
-            raise JobsDBError(f"GraphQL error: {hard[0]['message'][:300]}")
-        raise JobsDBError(f"Response 200 missing data.{op_key} (contract drift?)")
-    
+            raise JobsDBError(
+                f"GraphQL error: {hard[0]['message'][:300]}",
+                kind="http",
+                operation=op,
+            )
+        raise JobsDBError(
+            f"Response 200 missing data.{op_key} (contract drift?)",
+            kind="runtime",
+            operation=op,
+        )
+
     # Key exists but is None/empty = valid response, caller handles empty payload
     return body
 
@@ -137,23 +146,34 @@ class RateLimiter:
 
     Thread-safe: `wait()`/`adapt()` may be called from multiple threads
     (the async client runs the limiter in worker threads via asyncio.to_thread).
+
+    Time and sleep are injectable for deterministic testing:
+        now_fn: callable returning current monotonic time (default: time.monotonic)
+        sleep_fn: callable(seconds) that sleeps (default: time.sleep)
     """
 
-    def __init__(self, rpm: float):
+    def __init__(
+        self,
+        rpm: float,
+        now_fn: Callable[[], float] | None = None,
+        sleep_fn: Callable[[float], None] | None = None,
+    ):
         self._min_interval = 60.0 / max(rpm, 0.1)
         self._interval = self._min_interval
         self._last = 0.0
         self._lock = threading.Lock()
+        self._now = now_fn or time.monotonic
+        self._sleep = sleep_fn or time.sleep
 
     def wait(self) -> None:
         with self._lock:
-            now = time.monotonic()
+            now = self._now()
             delta = self._interval - (now - self._last)
             # Reserve the slot while sleeping so concurrent callers serialize
             # instead of all waking at the same instant.
             self._last = max(now, self._last + self._interval)
         if delta > 0:
-            time.sleep(delta)
+            self._sleep(delta)
 
     def adapt(self, headers: dict[str, str]) -> None:
         score = headers.get("seek-bot-score") or headers.get("Seek-Bot-Score")
