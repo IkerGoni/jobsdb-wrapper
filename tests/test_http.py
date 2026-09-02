@@ -153,6 +153,81 @@ def test_rate_limiter_recovers_but_never_below_minimum():
     assert rl._interval >= rl._min_interval
 
 
+def test_rate_limiter_wait_respects_interval_deterministic():
+    """wait() enforces min interval using injectable time/sleep — no real sleep."""
+    clock = [0.0]
+    sleeps = []
+
+    def now_fn() -> float:
+        return clock[0]
+
+    def sleep_fn(delta: float) -> None:
+        sleeps.append(delta)
+        clock[0] += delta
+
+    rl = RateLimiter(rpm=60, now_fn=now_fn, sleep_fn=sleep_fn)  # 1.0s interval
+    rl.wait()  # first call, _last=0 -> delta = 1.0 - 0 = 1.0
+    assert sleeps == [1.0]
+    assert clock[0] == 1.0
+
+    clock[0] = 1.5  # advance time 0.5s past the reserved slot
+    rl.wait()  # delta = 1.0 - (1.5 - 1.0) = 0.5
+    assert sleeps == [1.0, 0.5]
+    assert clock[0] == 2.0
+
+
+def test_rate_limiter_wait_no_sleep_when_past_due():
+    """wait() sleeps 0 when enough time has already elapsed."""
+    clock = [10.0]
+    sleeps = []
+
+    def now_fn() -> float:
+        return clock[0]
+
+    def sleep_fn(delta: float) -> None:
+        sleeps.append(delta)
+        clock[0] += delta
+
+    rl = RateLimiter(rpm=60, now_fn=now_fn, sleep_fn=sleep_fn)  # 1.0s interval
+    # Simulate that a request already happened at t=0 (so _last=0, interval=1)
+    # Now at t=10, wait() should see delta = 1 - (10 - 0) = -9 -> no sleep
+    rl.wait()
+    assert sleeps == []
+
+
+def test_rate_limiter_concurrent_wait_serializes_with_fake_time():
+    """Concurrent wait() calls serialize correctly (using lock) with fake time."""
+    import threading
+
+    clock = [0.0]
+    sleeps = []
+    lock = threading.Lock()
+
+    def now_fn() -> float:
+        return clock[0]
+
+    def sleep_fn(delta: float) -> None:
+        with lock:
+            sleeps.append(delta)
+        clock[0] += delta
+
+    rl = RateLimiter(rpm=6000, now_fn=now_fn, sleep_fn=sleep_fn)  # 0.01s interval
+
+    def worker():
+        rl.wait()
+
+    threads = [threading.Thread(target=worker) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # 5 calls -> 5 sleeps of 0.01 each (serialized)
+    assert len(sleeps) == 5
+    assert all(s == pytest.approx(0.01) for s in sleeps)
+    assert clock[0] == pytest.approx(0.05)
+
+
 def test_classify_response_diagnostic_fields():
     """RequestError should carry status and body_snippet for diagnostics."""
     # Cloudflare challenge in 200
@@ -187,8 +262,10 @@ def test_classify_response_diagnostic_fields():
 
 def test_zero_results_not_error():
     """F11: 0 results is not an error, returns empty SearchResult."""
-    from jobsdb_wrapper.http import build_search_params
+    import json
     from unittest.mock import MagicMock
+
+    from jobsdb_wrapper.client import JobsDBClient
 
     def _fake_response(status=200, json_body=None):
         r = MagicMock()
@@ -201,16 +278,12 @@ def test_zero_results_not_error():
             r.text = ""
         return r
 
-    import json
-    from jobsdb_wrapper.client import JobsDBClient
-
     def _patch_session(client, response):
         """Patch the client's session post() to return a canned response."""
-        sess = MagicMock()
-        sess.post.return_value = response
-        sess.close = MagicMock()
-        client._session = sess
-        return sess
+        _ = MagicMock()
+        _.post.return_value = response
+        _.close = MagicMock()
+        client._session = _
 
     body = {
         "data": {
@@ -224,7 +297,7 @@ def test_zero_results_not_error():
     }
 
     with JobsDBClient() as c:
-        sess = _patch_session(c, _fake_response(200, body))
+        _patch_session(c, _fake_response(200, body))
         res = c.search(keywords="nonexistent")
         assert res.total == 0
         assert res.jobs == []
