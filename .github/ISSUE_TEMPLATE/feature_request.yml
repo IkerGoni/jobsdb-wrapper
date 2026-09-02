@@ -1,0 +1,36 @@
+name: Feature request
+description: Request an enhancement to jobsdb-wrapper
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Scope note: the package is intentionally guest-only (no login, no
+        cookies, no profile mutation, no automated applications) and does not
+        add complexity purely for portfolio optics. Feature requests are
+        evaluated against that boundary.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What engineering problem does this solve? Who hits it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Sketch the intended API surface and behavior. References to
+        specific source files are welcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: guest
+    attributes:
+      label: Does this stay within the guest-only boundary?
+      options:
+        - "Yes"
+        - "No (and I understand it will likely not be accepted)"
+    validations:
+      required: true

@@ -191,8 +191,113 @@ class TestSearch:
     def test_job_detail_empty_raises(self):
         with JobsDBClient() as c:
             _patch_session(c, _fake_response(200, {"data": {"jobDetails": {}}}))
-            with pytest.raises(JobsDBError, match="not found"):
+            with pytest.raises(JobsDBError, match="not found|empty payload"):
                 c.job("123")
+
+
+class TestCompany:
+    @staticmethod
+    def _company_search_body():
+        """Matches SEARCH_QUERY: organisation lives at the job root."""
+        return {
+            "data": {
+                "jobSearchV7": {
+                    "results": {
+                        "jobs": [{
+                            "id": "1000",
+                            "title": "Pandora job",
+                            "advertiser": {"id": "62536658", "name": "Pandora"},
+                            "organisation": {
+                                "id": "322",
+                                "name": "Pandora A/S",
+                                "companyProfileId": "1",
+                                "companyProfileUrl": "https://th.jobsdb.com/company/pandora",
+                            },
+                            "location": {"displayName": {"text": "Bangkok"}},
+                            "listedAt": {"dateTimeUtc": "2026-08-30T00:00:00Z"},
+                            "salary": {},
+                            "workArrangements": [],
+                            "categories": [],
+                        }],
+                        "pagination": {"page": 1, "pageSize": 20, "resultCount": 1},
+                    }
+                }
+            }
+        }
+
+    @staticmethod
+    def _empty_body():
+        return {
+            "data": {
+                "jobSearchV7": {
+                    "results": {
+                        "jobs": [],
+                        "pagination": {"page": 1, "pageSize": 20, "resultCount": 0},
+                    }
+                }
+            }
+        }
+
+    def test_company_finds_org_and_passes_organisation_ids(self, monkeypatch):
+        """Regression: company() must read the raw payload (root organisation)
+        and pass organisation_ids. It previously read advertiser.organisation
+        (not returned by the query -> always empty) and passed a non-existent
+        advertiser_org_ids filter (-> guaranteed TypeError)."""
+        captured = {}
+
+        class _FakeClient(JobsDBClient):
+            def __init__(self):
+                self.country_key = "th"
+                from jobsdb_wrapper.http import MARKET_HOSTS, RateLimiter
+
+                self.host, self.country_code, default_locale = MARKET_HOSTS["th"]
+                self.locale = default_locale
+                self.graphql_url = f"https://{self.host}/graphql"
+                self.timeout = 30
+                self.retries = 3
+                self.limiter = RateLimiter(60)
+                self._proxy = None
+                self._session = None
+
+            def graphql(self, query, variables, operation, runtime_retry=False):
+                captured["operation"] = operation
+                captured["variables"] = variables
+                flt = variables.get("params", {}).get("searchIntent", {}).get("filter", {})
+                if flt.get("organisationId"):
+                    return TestCompany._empty_body()
+                return TestCompany._company_search_body()
+
+        c = _FakeClient()
+        info = c.company("Pandora")
+        assert info.name == "Pandora"
+        assert info.organisation_id == "322"
+        assert captured["operation"] == "JobSearchV7"
+        flt = captured["variables"]["params"]["searchIntent"].get("filter", {})
+        assert flt["organisationId"] == ["322"]
+
+    def test_company_raises_when_no_org(self):
+        class _FakeClient(JobsDBClient):
+            def __init__(self):
+                self.country_key = "th"
+                from jobsdb_wrapper.http import MARKET_HOSTS, RateLimiter
+
+                self.host, self.country_code, default_locale = MARKET_HOSTS["th"]
+                self.locale = default_locale
+                self.graphql_url = f"https://{self.host}/graphql"
+                self.timeout = 30
+                self.retries = 3
+                self.limiter = RateLimiter(60)
+                self._proxy = None
+                self._session = None
+
+            def graphql(self, query, variables, operation, runtime_retry=False):
+                return {"data": {"jobSearchV7": {
+                    "results": {"jobs": [{"id": "1", "title": "x", "advertiser": None}],
+                                "pagination": {"page": 1, "pageSize": 20, "resultCount": 1}}
+                }}}
+
+        with pytest.raises(JobsDBError, match="No organisation"):
+            _FakeClient().company("Nobody")
 
 
 # --------------------------------------------------------------- search params
@@ -244,8 +349,14 @@ class TestHttp:
         assert ei.value.kind == "runtime"
 
     def test_interpret_body_ok(self):
-        body = {"data": {"Op": {"x": 1}}}
-        assert interpret_body(body, "Op") is body
+        body = {"data": {"jobSearchV7": {"x": 1}}}
+        assert interpret_body(body, "JobSearchV7") is body
+
+    def test_interpret_body_missing_operation(self):
+        """F8: Response 200 without data.<operation> raises JobsDBError."""
+        body = {"data": {}}
+        with pytest.raises(JobsDBError):
+            interpret_body(body, "JobSearchV7")
 
     def test_rate_limiter_never_negative(self):
         RateLimiter(60000).wait()  # must not raise

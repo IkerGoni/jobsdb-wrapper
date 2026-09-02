@@ -49,10 +49,18 @@ def resolve_arrangement(value: str | int) -> str | None:
 
 
 class RequestError(RuntimeError):
-    """Signals the caller should retry with a fresh session context."""
+    """Signals the caller should retry with a fresh session context.
 
-    def __init__(self, kind: str, message: str):
+    Attributes:
+        kind: One of 'network' | 'http' | 'runtime' | 'blocked'
+        status: HTTP status code if applicable (None for network errors)
+        body_snippet: First 200 chars of response body for diagnostics
+    """
+
+    def __init__(self, kind: str, message: str, status: int | None = None, body_snippet: str | None = None):
         self.kind = kind  # 'network' | 'http' | 'runtime' | 'blocked'
+        self.status = status
+        self.body_snippet = body_snippet
         super().__init__(message)
 
 
@@ -78,29 +86,45 @@ def classify_response(status: int, text: str) -> Any | RequestError:
     if status == 200:
         head = text[:3000]
         if any(m.lower() in head.lower() for m in CHALLENGE_MARKERS) and "jobSearch" not in head:
-            return RequestError("blocked", "Cloudflare challenge intercepted the API route")
+            return RequestError("blocked", "Cloudflare challenge intercepted the API route", status=200, body_snippet=text[:200])
         try:
             return json.loads(text)
         except Exception:
-            return RequestError("network", f"non-JSON 200 body ({len(text)}b)")
+            return RequestError("network", f"non-JSON 200 body ({len(text)}b)", status=200, body_snippet=text[:200])
     if status == 403:
-        return RequestError("blocked", "HTTP 403 (possible Cloudflare block)")
+        return RequestError("blocked", "HTTP 403 (possible Cloudflare block)", status=403, body_snippet=text[:200])
     if status in (429, 502, 503, 504):
-        return RequestError("http", f"HTTP {status}")
-    return RequestError("http", f"HTTP {status}: {text[:150]}")
+        return RequestError("http", f"HTTP {status}", status=status, body_snippet=text[:200])
+    return RequestError("http", f"HTTP {status}: {text[:150]}", status=status, body_snippet=text[:200])
 
 
 def interpret_body(body: dict[str, Any], op: str) -> dict[str, Any]:
-    """Validate GraphQL envelope; flag soft runtime errors for session-retry."""
+    """Validate GraphQL envelope; flag soft runtime errors for session-retry.
+
+    The GraphQL response uses camelCase for operation names:
+    - JobSearchV7 -> jobSearchV7
+    - JobDetail -> jobDetails  (note: plural in response)
+    """
     errors = body.get("errors") or []
     hard = [e for e in errors if e.get("message") != "An error occurred"]
     data = body.get("data") or {}
-    node = data.get(op)
-    if not data or node is None:
+
+    # Map operationName to response key (camelCase, with known special cases)
+    if op == "JobDetail":
+        op_key = "jobDetails"
+    else:
+        op_key = op[:1].lower() + op[1:] if op else op
+
+    node = data.get(op_key)
+    # Missing key entirely = contract drift
+    if node is None and op_key not in data:
         if any(e.get("extensions", {}).get("code") == "UNSTABLE_QUERY_ERROR" for e in errors):
             raise RequestError("runtime", "UNSTABLE_QUERY_ERROR (soft backend rejection)")
         if hard:
             raise JobsDBError(f"GraphQL error: {hard[0]['message'][:300]}")
+        raise JobsDBError(f"Response 200 missing data.{op_key} (contract drift?)")
+    
+    # Key exists but is None/empty = valid response, caller handles empty payload
     return body
 
 

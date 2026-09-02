@@ -1,0 +1,62 @@
+name: Upstream contract change
+description: The undocumented SEEK API changed and jobsdb-wrapper no longer works against it
+title: "[Contract drift] "
+labels: [contract]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for drift in the *upstream* SEEK GraphQL contract, not
+        for bugs in this package. Run `jobsdb doctor` first and include its output.
+  - type: input
+    id: date
+    attributes:
+      label: Date observed
+      description: YYYY-MM-DD
+    validations:
+      required: true
+  - type: dropdown
+    id: market
+    attributes:
+      label: Market
+      options:
+        - th (Thailand)
+        - hk (Hong Kong)
+        - my (Malaysia)
+        - sg (Singapore)
+        - ph (Philippines)
+        - id (Indonesia)
+        - Unknown / multiple
+    validations:
+      required: true
+  - type: dropdown
+    id: operation
+    attributes:
+      label: Operation affected
+      options:
+        - JobSearchV7 (search)
+        - JobSearchV6 (facets)
+        - JobDetail
+        - Locations / suggestions
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed failure
+      description: Error message, status code, or unexpected payload shape.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What the previous contract produced for the same call.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: jobsdb doctor output
+      description: Paste the full `jobsdb doctor` (or `jobsdb doctor --json`) output.

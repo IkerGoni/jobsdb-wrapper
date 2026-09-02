@@ -25,15 +25,22 @@ class DoctorReport:
         return all(r.ok for r in self.results)
 
     def summary(self) -> str:
-        lines = []
-        for r in self.results:
-            lines.append(f"[{'OK ' if r.ok else 'FAIL'}] {r.name}: {r.detail}")
-        lines.append(
-            "HEALTHY"
-            if self.healthy
-            else f"DRIFT DETECTED ({sum(1 for r in self.results if not r.ok)} checks failed)"
-        )
+        failed = sum(1 for r in self.results if not r.ok)
+        lines = ["JobsDB contract doctor", ""]
+        lines.extend(f"[{'PASS' if r.ok else 'FAIL'}] {r.name}: {r.detail}" for r in self.results)
+        status = "HEALTHY" if failed == 0 else f"DRIFT DETECTED ({failed} check(s) failed)"
+        lines += ["", f"Contract status: {status}"]
         return "\n".join(lines)
+
+    def to_dict(self) -> dict:
+        """Stable shape for `jobsdb doctor --json` automation."""
+        return {
+            "status": "healthy" if self.healthy else "unhealthy",
+            "checks": [
+                {"name": r.name, "status": "pass" if r.ok else "fail", "detail": r.detail}
+                for r in self.results
+            ],
+        }
 
 
 def run_doctor(country: str = "th") -> DoctorReport:

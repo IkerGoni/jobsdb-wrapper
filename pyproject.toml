@@ -60,6 +60,9 @@ jobsdb = "jobsdb_wrapper.cli:main"
 where = ["src"]
 include = ["jobsdb_wrapper*"]
 
+[tool.setuptools.package-data]
+jobsdb_wrapper = ["*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

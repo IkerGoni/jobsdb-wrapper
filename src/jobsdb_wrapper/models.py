@@ -85,6 +85,9 @@ class JobSummary:
     abstract: str | None = None
     url: str | None = None
     profile_url: str | None = None
+    # raw upstream payload, kept only when the caller needs it (e.g. company
+    # detail); excluded from repr/equality so dataclass semantics stay clean.
+    raw: dict[str, Any] | None = field(default=None, repr=False, compare=False)
 
     @property
     def web_url(self) -> str:
@@ -125,6 +128,7 @@ class JobSummary:
             abstract=j.get("abstract"),
             url=j.get("url"),
             profile_url=profile_url,
+            raw=j,
         )
 
 
@@ -166,6 +170,7 @@ class JobDetail(JobSummary):
                 "content_html": j.get("content"),
                 "is_expired": bool(j.get("isExpired")),
                 "created_at": (j.get("createdAt") or {}).get("dateTimeUtc"),
+                "raw": base.raw,
             }
         )
 

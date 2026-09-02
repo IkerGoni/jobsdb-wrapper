@@ -44,4 +44,4 @@ docs:
   - README.md (user documentation)
   - src/jobsdb_wrapper/USER_GUIDE.md (usage guide)
   - tests/ (unit tests)
-  - examples/ (usage examples)
+  - docs/ (engineering documentation: case study, architecture, failure matrix)

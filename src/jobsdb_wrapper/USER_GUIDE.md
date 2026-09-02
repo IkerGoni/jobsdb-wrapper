@@ -78,11 +78,12 @@ asyncio.run(main())
 
 ### Filters
 
-`search()` supports: `keywords`, `where`, `where_id`, `distance_km`, `work_types`
+`search()` supports: `keywords`, `where`, `distance_km`, `work_types`
 (`full_time|part_time|contract|casual`), `work_arrangements`
 (`on_site|hybrid|remote`), `salary_min/max/period` (`hourly|monthly|annual`),
-`posted_within_days`, `categories`, `company`, `advertiser_org_ids`, `tags`,
-`sort` (`relevance|date`), `page`, `page_size`.
+`posted_within_days`, `categories`, `advertiser_id`, `organisation_ids`,
+`company`, `tags`, `sort` (`relevance|date`), `page`, `page_size`,
+`include_facets`.
 
 ### Markets
 

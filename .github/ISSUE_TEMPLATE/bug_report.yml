@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a defect in jobsdb-wrapper (not an upstream SEEK change)
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. The repository is guest-only
+        and does not implement authentication; issues about login/cookies/profile
+        access are out of scope.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, and what happened instead of the expected result?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: e.g. 4.0.0, or the git commit / branch
+    validations:
+      required: true
+  - type: dropdown
+    id: market
+    attributes:
+      label: Market
+      options:
+        - th (Thailand)
+        - hk (Hong Kong)
+        - my (Malaysia)
+        - sg (Singapore)
+        - ph (Philippines)
+        - id (Indonesia)
+        - Unknown / not market-specific
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Code snippet, CLI command, and any relevant traceback.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: jobsdb doctor output (if relevant)
+      description: Paste `jobsdb doctor` output. This helps distinguish an upstream
+        contract change from a bug in this package.

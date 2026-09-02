@@ -24,6 +24,37 @@ def test_cache_market_isolation(tmp_path):
     c.close()
 
 
+def test_cache_missing_entry_is_none(tmp_path):
+    c = DetailCache(tmp_path / "c_missing.db")
+    assert c.get("999", "th") is None
+    assert c.get_valid("999", "th") is None
+    c.close()
+
+
+def test_cache_overwrite_updates_entry(tmp_path):
+    c = DetailCache(tmp_path / "c_overwrite.db")
+    c.put("111", "th", {"content": "<p>v1</p>"})
+    c.put("111", "th", {"content": "<p>v2</p>"})
+    got = c.get_valid("111", "th")
+    assert got["content"] == "<p>v2</p>"
+    assert c.stats()["entries"] == 1  # replace, not append
+    c.close()
+
+
+def test_cache_corrupt_payload_is_skipped(tmp_path):
+    c = DetailCache(tmp_path / "c_corrupt.db")
+    c.put("111", "th", {"content": "<p>x</p>"})
+    # simulate on-disk corruption: valid hash, non-JSON payload
+    with c._lock:
+        c._conn.execute(
+            "UPDATE details SET payload='{not json' WHERE job_id='111'"
+        )
+        c._conn.commit()
+    assert c.get("111", "th") is None
+    assert c.get_valid("111", "th") is None
+    c.close()
+
+
 def test_cache_invalid_content_hash(tmp_path):
     c = DetailCache(tmp_path / "c3.db")
     payload = {"content": "<p>v1</p>"}
@@ -49,4 +80,12 @@ def test_doctor_report_shape():
     r = DoctorReport(results=[CheckResult("a", True, "ok"), CheckResult("b", False, "bad")])
     assert not r.healthy
     s = r.summary()
-    assert "[OK ] a" in s and "DRIFT DETECTED" in s
+    assert "[PASS] a" in s and "[FAIL] b" in s and "DRIFT DETECTED" in s
+    assert "Contract status:" in s
+    assert r.to_dict() == {
+        "status": "unhealthy",
+        "checks": [
+            {"name": "a", "status": "pass", "detail": "ok"},
+            {"name": "b", "status": "fail", "detail": "bad"},
+        ],
+    }

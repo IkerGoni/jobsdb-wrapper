@@ -227,7 +227,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     from .doctor import run_doctor
 
     report = run_doctor(country=args.country)
-    print(report.summary())
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print(report.summary())
     return 0 if report.healthy else 1
 
 
@@ -271,6 +274,7 @@ def main(argv: list[str] | None = None) -> int:
 
     dp = sub.add_parser("doctor", help="Contract drift check against live API")
     dp.add_argument("--country", default="th", choices=["th", "hk", "my", "sg", "ph", "id"])
+    dp.add_argument("--json", action="store_true", help="Machine-readable JSON report")
     dp.set_defaults(func=cmd_doctor)
 
     args = ap.parse_args(argv)

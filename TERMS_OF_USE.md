@@ -24,9 +24,11 @@ By using this package you agree that:
 3. **You respect personal data law.** Job ads are public, but scraping for
    purposes like bulk profiling of individuals may trigger GDPR/PDPA
    obligations. The maintainers take no position on your use case.
-4. **You use authenticated features only on your own account.** The
-   `[session]` profile surface operates on cookies from *your own* logged-in
-   browser. Using it against accounts you do not control is prohibited.
+4. **You only use guest functionality.** As of v4.0.0 this package ships no
+   authentication surface: no login, no cookie handling, no profile read/write,
+   no automated applications. Do not use the package to attempt access to
+   accounts you do not control — that functionality is neither provided nor
+   intended.
 
 ## 3. No warranty
 

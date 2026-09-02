@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+**Portfolio / engineering-presentation upgrade.** Documentation and evidence
+now emphasize engineering decisions over scraping capability. No guest-only
+scope change: no login, cookies, profile mutation, or automated applications.
+
+### Fixed
+- `JobsDBClient.company()` read the organisation from `advertiser.organisation`
+  (never returned by `SEARCH_QUERY`) and passed a non-existent
+  `advertiser_org_ids` filter — both guaranteed runtime failures. It now reads
+  the root `organisation` node and passes `organisation_ids`.
+- `JobSummary`/`JobDetail` now retain the raw upstream payload (`raw`, excluded
+  from `repr`/`==`) so detail lookups like `company()` can read fields outside
+  the curated model.
+
+### Added
+- `docs/CASE_STUDY.md`, `docs/ARCHITECTURE.md` — engineering case study and a
+  dependency-direction architecture doc grounded in the actual source.
+- `docs/FAILURE_MATRIX.md` — rewritten in English as the verified failure
+  matrix (the previous version was a Spanish implementation note).
+- `jobsdb doctor --json` — stable machine-readable report (`status` + `checks`);
+  exit code still reflects health (0 healthy / 1 drift).
+- `jobsdb doctor` human output now uses `[PASS]`/`[FAIL]` and a
+  `Contract status:` line.
+- Issue templates (bug / upstream contract change / feature request) and a
+  short PR template.
+- `USER_GUIDE.md` now ships inside the wheel and sdist (`package-data`).
+
+### Changed
+- `TERMS_OF_USE.md` §2.4 no longer references the removed authenticated
+  `[session]`/cookie surface; it documents the guest-only boundary.
+- `docs/MANIFEST.yaml` doc listing updated (removed non-existent `examples/`,
+  added `docs/`).
+- `USER_GUIDE.md` filter list corrected (`advertiser_id`/`organisation_ids`
+  instead of the non-existent `where_id`/`advertiser_org_ids`).
+
+### Tests
+- `tests/test_cli.py` — CLI arg wiring, JSON output shape, `doctor` exit codes
+  and `--json` (CLI was previously at 0% coverage).
+- `tests/test_async.py` — bounded-concurrency bound, per-job failure isolation,
+  all-failures raise, session cleanup, async search/iter.
+- `tests/test_http.py` — rate-limiter invariants (initial interval, no-op
+  without the header, ×3 cap, no sub-minimum recovery) and `organisationId`
+  encoding.
+- `tests/test_cache.py` — missing/corrupt/overwrite paths and the doctor report
+  shape incl. `to_dict()`.
+- `tests/test_core.py` — `company()` regression tests.
+
 ## [4.0.0] - 2026-09-13
 
 **Guest-only rewrite.** The entire authentication/profile surface was removed

@@ -11,7 +11,8 @@
 
 **Do not open a public issue for security problems.**
 
-Email: **security@jobsdb-wrapper.dev** (or open a GitHub **private** security advisory via *Security → Report a vulnerability*).
+Open a GitHub **private** security advisory via *Security → Report a vulnerability*
+(preferred — reaches the maintainer directly and keeps the report confidential).
 
 Please include:
 

@@ -315,19 +315,21 @@ class JobsDBClient(_BaseClient):
 
     def company(self, name: str, page_size: int = 20) -> CompanyInfo:
         res = self.search(keywords=name, page_size=1)
+        # SEARCH_QUERY requests `organisation { id name companyProfileId
+        # companyProfileUrl }` at the job root; the advertiser node only carries
+        # id + name. Read the organisation from the job root.
         org: dict[str, Any] = next(
             (
-                j._raw.get("advertiser", {})
-                .get("organisation", {})
+                (j.raw or {}).get("organisation", {})
                 for j in res.jobs
-                if j._raw.get("advertiser", {}).get("organisation")
+                if (j.raw or {}).get("organisation")
             ),
             {},
         )
         org_id = str(org.get("id") or "")
         if not org_id:
             raise JobsDBError(f"No organisation found for {name!r}")
-        detail = self.search(advertiser_org_ids=[org_id], page_size=page_size)
+        detail = self.search(organisation_ids=[org_id], page_size=page_size)
         url = next((j.profile_url for j in detail.jobs if j.profile_url), None)
         return CompanyInfo(
             name=name, organisation_id=org_id, profile_url=url, active_jobs=detail.total

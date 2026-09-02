@@ -1,0 +1,12 @@
+# Everything the README links must ship in the sdist (and thus on PyPI).
+include README.md
+include CHANGELOG.md
+include LICENSE
+include CODE_OF_CONDUCT.md
+include CONTRIBUTING.md
+include SECURITY.md
+include TERMS_OF_USE.md
+include docs/MANIFEST.yaml
+
+recursive-include docs *.md
+recursive-include .github *.yml *.md
