@@ -42,17 +42,63 @@ SORT_MODES: dict[str, str] = {
 
 
 class JobsDBError(Exception):
-    """Base wrapper error."""
+    """Base wrapper error.
+
+    Attributes:
+        kind: failure class — 'network' | 'http' | 'blocked' | 'runtime'
+        status: HTTP status code when the failure came from a response
+        body_snippet: first 200 chars of the response body (diagnostics)
+        operation: GraphQL operationName that failed, when known
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        kind: str | None = None,
+        status: int | None = None,
+        body_snippet: str | None = None,
+        operation: str | None = None,
+    ):
+        self.kind = kind
+        self.status = status
+        self.body_snippet = body_snippet
+        self.operation = operation
+        super().__init__(message)
 
 
 class JobsDBBlockedError(JobsDBError):
     """Cloudflare (or edge) started challenging the API route."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        status: int | None = None,
+        body_snippet: str | None = None,
+        operation: str | None = None,
+    ):
+        super().__init__(
+            message, kind="blocked", status=status, body_snippet=body_snippet, operation=operation
+        )
+
 
 class JobsDBHTTPError(JobsDBError):
-    def __init__(self, status: int, body: str):
-        self.status = status
-        super().__init__(f"HTTP {status}: {body[:200]}")
+    def __init__(
+        self,
+        status: int,
+        body: str = "",
+        *,
+        operation: str | None = None,
+    ):
+        self.body_snippet = body[:200] if body else None
+        super().__init__(
+            f"HTTP {status}: {body[:200]}",
+            kind="http",
+            status=status,
+            body_snippet=self.body_snippet,
+            operation=operation,
+        )
 
 
 MARKET_HOSTS: dict[str, str] = {

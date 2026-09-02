@@ -4,7 +4,7 @@ Guest-only: search, job details, facets, Markdown extraction, caching, async
 bulk — with just curl_cffi. No accounts, no cookies, no browser automation.
 """
 
-__version__ = "4.0.0"
+__version__ = "4.0.1"
 from .async_client import AsyncJobsDBClient
 from .client import JobsDBClient
 from .markdown import html_to_markdown, job_to_markdown

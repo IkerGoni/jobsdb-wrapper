@@ -24,6 +24,7 @@ from .models import (
     JobDetail,
     JobsDBBlockedError,
     JobsDBError,
+    JobsDBHTTPError,
     JobSummary,
     LocationFacet,
     SearchResult,
@@ -80,6 +81,7 @@ class AsyncJobsDBClient(_AsyncContextMixin, _BaseClient):
             "extensions": {"clientLibrary": {"name": "@apollo/client", "version": "4.2.12"}},
         }
         last_err: Exception | None = None
+        op_name = operation.split("(")[0]
         for attempt in range(self.retries + 1):
             await asyncio.to_thread(self.limiter.wait)
             try:
@@ -102,12 +104,28 @@ class AsyncJobsDBClient(_AsyncContextMixin, _BaseClient):
                 last_err = outcome
                 if outcome.kind == "blocked" and attempt >= 1:
                     raise JobsDBBlockedError(
-                        "API route is being challenged. Rotate IP / slow down."
+                        "API route is being challenged. Rotate IP / slow down.",
+                        status=outcome.status,
+                        body_snippet=outcome.body_snippet,
+                        operation=op_name,
                     )
+                # Determine if this HTTP error is retryable
+                retryable_http = outcome.kind == "http" and outcome.status in (429, 502, 503, 504)
+                if outcome.kind == "network" or retryable_http:
+                    await asyncio.to_thread(backoff_sleep, attempt)
+                    continue
+                # Non-retryable HTTP error (400, 500, etc.) - raise immediately
+                if outcome.kind == "http":
+                    raise JobsDBHTTPError(
+                        status=outcome.status or 0,
+                        body=outcome.body_snippet or "",
+                        operation=op_name,
+                    )
+                # For other kinds (should not reach here), fall through to backoff
                 await asyncio.to_thread(backoff_sleep, attempt)
                 continue
             try:
-                return interpret_body(outcome, operation.split("(")[0])
+                return interpret_body(outcome, op_name)
             except RequestError as e:
                 last_err = e
                 if e.kind == "runtime" and runtime_retry:
@@ -115,12 +133,30 @@ class AsyncJobsDBClient(_AsyncContextMixin, _BaseClient):
                     if "params" in variables:
                         variables["params"] = dict(variables["params"])
                         variables["params"]["sessionId"] = str(uuid.uuid4())
+                    # Update payload with new variables for next attempt
+                    payload = dict(payload)
+                    payload["variables"] = variables
                     continue
                 await asyncio.to_thread(backoff_sleep, attempt)
         kind = getattr(last_err, "kind", "network")
         if kind == "blocked":
-            raise JobsDBBlockedError(str(last_err))
-        raise JobsDBError(f"Request failed after {self.retries} retries: {last_err}")
+            raise JobsDBBlockedError(
+                str(last_err),
+                status=getattr(last_err, "status", None),
+                body_snippet=getattr(last_err, "body_snippet", None),
+                operation=op_name,
+            )
+        if kind == "http":
+            raise JobsDBHTTPError(
+                status=getattr(last_err, "status", 0),
+                body=getattr(last_err, "body_snippet", "") or "",
+                operation=op_name,
+            )
+        raise JobsDBError(
+            f"Request failed after {self.retries} retries: {last_err}",
+            kind="network",
+            operation=op_name,
+        )
 
     # ----------------------------------------------------------------- search
 

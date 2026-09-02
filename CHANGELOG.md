@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- Next release: breaking changes, protocol changes, compatibility notes, test coverage changes, security/scope changes -->
+
+## [4.0.1] - 2026-09-02
+
 **Portfolio / engineering-presentation upgrade.** Documentation and evidence
 now emphasize engineering decisions over scraping capability. No guest-only
 scope change: no login, cookies, profile mutation, or automated applications.
@@ -53,7 +57,7 @@ scope change: no login, cookies, profile mutation, or automated applications.
   shape incl. `to_dict()`.
 - `tests/test_core.py` — `company()` regression tests.
 
-## [4.0.0] - 2026-09-13
+## [4.0.0] - 2026-09-02
 
 **Guest-only rewrite.** The entire authentication/profile surface was removed
 so the package does one thing well: anonymous job search and posting
