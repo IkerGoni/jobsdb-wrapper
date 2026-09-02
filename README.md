@@ -930,6 +930,12 @@ Guest search and extraction are enough to make the package useful.
 - [`SECURITY.md`](SECURITY.md)
 - [`TERMS_OF_USE.md`](TERMS_OF_USE.md)
 
+### Engineering docs
+- [`docs/CASE_STUDY.md`](docs/CASE_STUDY.md) — design decisions & trade-offs
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — dependency-direction architecture
+- [`docs/FAILURE_MATRIX.md`](docs/FAILURE_MATRIX.md) — verified failure taxonomy
+- [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) — cache/concurrency micro-benchmarks (fixtures only)
+
 ---
 
 # Author
