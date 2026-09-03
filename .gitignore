@@ -56,3 +56,5 @@ artifacts/
 
 #not to be pushed to repo, plans, audits, private
 _internal_private/
+# Internal working state
+kanban_board.json
